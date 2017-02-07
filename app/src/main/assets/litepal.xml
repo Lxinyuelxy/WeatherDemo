@@ -1,0 +1,9 @@
+<litepal>
+    <dbname value='WeatherApp'/>
+    <version value='1'/>
+    <list>
+        <mapping class="com.example.popmusic.weatherapp.db.Province"/>
+        <mapping class="com.example.popmusic.weatherapp.db.City"/>
+        <mapping class="com.example.popmusic.weatherapp.db.County"/>
+    </list>
+</litepal>
