@@ -1,5 +1,6 @@
 package com.example.popmusic.weatherapp;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
@@ -10,6 +11,7 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
@@ -22,6 +24,7 @@ import android.widget.Toast;
 import com.bumptech.glide.Glide;
 import com.example.popmusic.weatherapp.gson.Forecast;
 import com.example.popmusic.weatherapp.gson.Weather;
+import com.example.popmusic.weatherapp.service.AutoUpdateService;
 import com.example.popmusic.weatherapp.util.HttpUtil;
 import com.example.popmusic.weatherapp.util.Utility;
 
@@ -33,6 +36,7 @@ import okhttp3.Response;
 
 
 public class WeatherActivity extends AppCompatActivity {
+    private static final String TAG = "WeatherActivity";
     private ScrollView weatherLayout;
 
     private TextView titleCity;
@@ -63,13 +67,17 @@ public class WeatherActivity extends AppCompatActivity {
 
     private Button navButton;
 
+    private String mWeatherId;
+
+    private int test = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if(Build.VERSION.SDK_INT >= 21){
+        if (Build.VERSION.SDK_INT >= 21) {
             View decorView = getWindow().getDecorView();
-            decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
             getWindow().setStatusBarColor(Color.TRANSPARENT);
         }
         setContentView(R.layout.activity_weather);
@@ -108,20 +116,20 @@ public class WeatherActivity extends AppCompatActivity {
         }
 
         String weatherString = prefs.getString("weather", null);
-        final String weatherId;
+
         if(weatherString != null){
-            Weather weather = Utility.handleWeatherReponse(weatherString);
-            weatherId = weather.basic.weatherId;
+            Weather weather = Utility.handleWeatherResponse(weatherString);
+            mWeatherId = weather.basic.weatherId;
             showWeatherInfo(weather);
         }else{
-            weatherId = getIntent().getStringExtra("weather_id");
+            mWeatherId = getIntent().getStringExtra("weather_id");
             weatherLayout.setVisibility(View.INVISIBLE);
-            requestWeather(weatherId);
+            requestWeather(mWeatherId);
         }
         swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
-                requestWeather(weatherId);
+                requestWeather(mWeatherId);
             }
         });
 
@@ -145,7 +153,7 @@ public class WeatherActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 final String responseText = response.body().string();
-                final Weather weather = Utility.handleWeatherReponse(responseText);
+                final Weather weather = Utility.handleWeatherResponse(responseText);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -154,6 +162,7 @@ public class WeatherActivity extends AppCompatActivity {
                                     PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
                             editor.putString("weather", responseText);
                             editor.apply();
+                            mWeatherId = weather.basic.weatherId;
                             showWeatherInfo(weather);
                         }else{
                             Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
@@ -177,6 +186,7 @@ public class WeatherActivity extends AppCompatActivity {
         titleUpdateTime.setText(updateTime);
         degreeText.setText(degree);
         weatherInfoText.setText(weatherInfo);
+
         forecastLayout.removeAllViews();
         for(Forecast forecast : weather.forecastList){
             View view = LayoutInflater.from(this).inflate(R.layout.forecast_item, forecastLayout, false);
@@ -196,13 +206,16 @@ public class WeatherActivity extends AppCompatActivity {
             aqiText.setText(weather.aqi.city.aqi);
             pm25Text.setText(weather.aqi.city.pm25);
         }
-        String comfort = "舒适度" + weather.suggestion.comfort.info;
-        String carWash = "洗车指数" + weather.suggestion.carWash.info;
-        String sport = "运动建议" + weather.suggestion.sport.info;
+        String comfort = "舒适度:" + weather.suggestion.comfort.info;
+        String carWash = "洗车指数:" + weather.suggestion.carWash.info;
+        String sport = "运动建议:" + weather.suggestion.sport.info;
         comfortText.setText(comfort);
         carWashText.setText(carWash);
         sportText.setText(sport);
+
         weatherLayout.setVisibility(View.VISIBLE);
+        Intent intent = new Intent(this, AutoUpdateService.class);
+        startService(intent);
 
     }
 
